@@ -2,7 +2,7 @@ import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { notifyNewEnquiry } from "@/lib/email";
-
+import { getDatabase } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -83,21 +83,29 @@ export async function POST(request: Request) {
   };
 
   try {
-    const folder = path.join(process.cwd(), "data");
+    const { error } = await getDatabase()
+  .from("studio_enquiries")
+  .insert({
+    id: enquiry.id,
+    name: enquiry.name,
+    email: enquiry.email,
+    service: enquiry.service,
+    message: enquiry.message,
+    consent: enquiry.consent,
+    status: enquiry.status,
+    created_at: enquiry.createdAt,
+  });
 
-    await mkdir(folder, { recursive: true });
+if (error) {
+  throw new Error(`Database insert failed: ${error.code}`);
+}
 
-    await appendFile(
-      path.join(folder, "enquiries.jsonl"),
-      JSON.stringify(enquiry) + "\n",
-      "utf8"
-    );
-    await notifyNewEnquiry(enquiry);
-
-    return Response.json(
-      { success: true, reference: enquiry.id },
-      { status: 201 }
-    );
+// Saving succeeds even if the notification email fails.
+try {
+  await notifyNewEnquiry(enquiry);
+} catch {
+  console.error("Notification failed for enquiry:", enquiry.id);
+}
   } catch (error) {
     console.error("Enquiry could not be saved:", error);
 

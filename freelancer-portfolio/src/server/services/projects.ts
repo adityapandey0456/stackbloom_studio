@@ -1,15 +1,7 @@
 import "server-only";
 
-import {
-  mkdir,
-  readFile,
-  readdir,
-  rename,
-  writeFile,
-} from "node:fs/promises";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { defaultProjects } from "@/config/portfolio";
+import { getDatabase } from "@/lib/supabase-admin";
 
 export type StudioProject = {
   id: string;
@@ -24,23 +16,11 @@ export type StudioProject = {
   archived?: boolean;
 };
 
-const directory = path.join(
-  process.cwd(),
-  "data",
-  "projects"
-);
-
 function validProjectId(id: string): boolean {
-  const isOriginal = defaultProjects.some(
-    (project) => project.id === id
+  return (
+    defaultProjects.some((project) => project.id === id) ||
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
   );
-
-  const isUuid =
-    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
-      id
-    );
-
-  return isOriginal || isUuid;
 }
 
 export async function getStudioProjects(
@@ -56,46 +36,34 @@ export async function getStudioProjects(
     });
   }
 
-  let files: string[] = [];
+  const { data, error } = await getDatabase()
+    .from("studio_projects")
+    .select(
+      "id,name,category,description,technologies,github,live,headline,cover,archived"
+    )
+    .order("id");
 
-  try {
-    files = await readdir(directory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
+  if (error) {
+    throw new Error(`Could not load projects: ${error.code}`);
   }
 
-  const savedProjects = await Promise.all(
-    files
-      .filter((file) => file.endsWith(".json"))
-      .sort()
-      .map(async (file): Promise<StudioProject> => {
-        const content = await readFile(
-          path.join(directory, file),
-          "utf8"
-        );
+  for (const row of data ?? []) {
+    if (!validProjectId(row.id)) {
+      throw new Error("Invalid saved project ID.");
+    }
 
-        const project = JSON.parse(content) as StudioProject;
-
-        if (
-          !project ||
-          typeof project.id !== "string" ||
-          !validProjectId(project.id) ||
-          file !== `${project.id}.json`
-        ) {
-          throw new Error(`Invalid saved project: ${file}`);
-        }
-
-        return {
-          ...project,
-          archived: project.archived === true,
-        };
-      })
-  );
-
-  for (const project of savedProjects) {
-    combined.set(project.id, project);
+    combined.set(row.id, {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      description: row.description,
+      technologies: row.technologies,
+      github: row.github,
+      live: row.live,
+      headline: row.headline,
+      cover: row.cover,
+      archived: row.archived === true,
+    });
   }
 
   const projects = [...combined.values()];
@@ -112,30 +80,26 @@ export async function saveStudioProject(
     throw new Error("Invalid project ID.");
   }
 
-  await mkdir(directory, { recursive: true });
-
-  const temporary = path.join(
-    directory,
-    `${randomUUID()}.tmp`
-  );
-
-  const target = path.join(
-    directory,
-    `${project.id}.json`
-  );
-
-  await writeFile(
-    temporary,
-    JSON.stringify(
+  const { error } = await getDatabase()
+    .from("studio_projects")
+    .upsert(
       {
-        ...project,
+        id: project.id,
+        name: project.name,
+        category: project.category,
+        description: project.description,
+        technologies: project.technologies,
+        github: project.github,
+        live: project.live,
+        headline: project.headline,
+        cover: project.cover,
         archived: project.archived === true,
+        updated_at: new Date().toISOString(),
       },
-      null,
-      2
-    ),
-    "utf8"
-  );
+      { onConflict: "id" }
+    );
 
-  await rename(temporary, target);
+  if (error) {
+    throw new Error(`Could not save project: ${error.code}`);
+  }
 }

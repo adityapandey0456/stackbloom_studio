@@ -1,7 +1,5 @@
-import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { isAdmin } from "@/lib/auth";
+import { getDatabase } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 
@@ -15,17 +13,14 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (
-    request.headers.get("origin") !==
-    new URL(request.url).origin
-  ) {
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
     return Response.json(
       { error: "Request not allowed." },
       { status: 403 }
     );
   }
 
-  let body;
+  let body: unknown;
 
   try {
     const text = await request.text();
@@ -45,12 +40,20 @@ export async function PATCH(request: Request) {
     );
   }
 
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json(
+      { error: "Invalid request." },
+      { status: 400 }
+    );
+  }
+
+  const { id, status } = body as Record<string, unknown>;
+
   if (
-    typeof body?.id !== "string" ||
-    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
-      body.id
-    ) ||
-    !statuses.includes(body.status)
+    typeof id !== "string" ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id) ||
+    typeof status !== "string" ||
+    !statuses.includes(status)
   ) {
     return Response.json(
       { error: "Invalid enquiry or status." },
@@ -59,48 +62,30 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const content = await readFile(
-      path.join(process.cwd(), "data", "enquiries.jsonl"),
-      "utf8"
-    );
+    const { data, error } = await getDatabase()
+      .from("studio_enquiries")
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
 
-    const exists = content
-      .split(/\r?\n/)
-      .filter((line) => line.trim())
-      .some((line) => JSON.parse(line).id === body.id);
+    if (error) {
+      throw new Error(`Database update failed: ${error.code}`);
+    }
 
-    if (!exists) {
+    if (!data) {
       return Response.json(
         { error: "Enquiry not found." },
         { status: 404 }
       );
     }
 
-    const directory = path.join(
-      process.cwd(),
-      "data",
-      "enquiry-status"
-    );
-
-    await mkdir(directory, { recursive: true });
-
-    const target = path.join(directory, `${body.id}.json`);
-    const temporary = path.join(directory, `${randomUUID()}.tmp`);
-
-    await writeFile(
-      temporary,
-      JSON.stringify({
-        status: body.status,
-        updatedAt: new Date().toISOString(),
-      }),
-      "utf8"
-    );
-
-    await rename(temporary, target);
-
-    return Response.json({ success: true, status: body.status });
-  } catch (error) {
-    console.error("Status update failed:", error);
+    return Response.json({ success: true, status });
+  } catch {
+    console.error("Enquiry status update failed.");
 
     return Response.json(
       { error: "Could not save the status. Please try again." },
