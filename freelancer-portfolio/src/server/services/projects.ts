@@ -100,6 +100,13 @@ export async function saveStudioProject(
     );
 
   if (error) {
-    throw new Error(`Could not save project: ${error.code}`);
-  }
+  console.error("Supabase projects query failed:", {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  });
+
+  throw new Error("Could not load projects from Supabase.");
+}
 }
