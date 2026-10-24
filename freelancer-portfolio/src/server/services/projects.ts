@@ -1,5 +1,6 @@
 import "server-only";
 
+import { connection } from "next/server";
 import { defaultProjects } from "@/config/portfolio";
 import { getDatabase } from "@/lib/supabase-admin";
 
@@ -28,6 +29,9 @@ function validProjectId(id: string): boolean {
 export async function getStudioProjects(
   includeArchived = false
 ): Promise<StudioProject[]> {
+  // Read current projects at request time, outside static prerendering.
+  await connection();
+
   const combined = new Map<string, StudioProject>();
 
   for (const project of defaultProjects) {
