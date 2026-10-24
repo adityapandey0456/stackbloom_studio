@@ -1,12 +1,19 @@
-import { appendFile, mkdir } from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { notifyNewEnquiry } from "@/lib/email";
 import { getDatabase } from "@/lib/supabase-admin";
+
 export const runtime = "nodejs";
 
+const services = [
+  "Website development",
+  "Website fixes",
+  "Data dashboard",
+  "Automation",
+  "Other",
+];
+
 export async function POST(request: Request) {
-  let body;
+  let body: unknown;
 
   try {
     const text = await request.text();
@@ -26,34 +33,31 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!body || typeof body !== "object") {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return Response.json(
       { error: "Invalid form data." },
       { status: 400 }
     );
   }
 
-  const read = (key: string) =>
-    typeof body[key] === "string" ? body[key].trim() : "";
+  const values = body as Record<string, unknown>;
+
+  function read(key: string): string {
+    const value = values[key];
+    return typeof value === "string" ? value.trim() : "";
+  }
+
   if (read("website")) {
-  return Response.json(
-    { error: "Unable to accept this submission." },
-    { status: 400 }
-  );
-}
+    return Response.json(
+      { error: "Unable to accept this submission." },
+      { status: 400 }
+    );
+  }
 
   const name = read("name");
   const email = read("email");
   const service = read("service");
   const message = read("message");
-
-  const services = [
-    "Website development",
-    "Website fixes",
-    "Data dashboard",
-    "Automation",
-    "Other",
-  ];
 
   if (
     name.length < 2 ||
@@ -63,10 +67,12 @@ export async function POST(request: Request) {
     !services.includes(service) ||
     message.length < 20 ||
     message.length > 5000 ||
-    body.consent !== true
+    values.consent !== true
   ) {
     return Response.json(
-      { error: "Please check all fields and accept the contact consent." },
+      {
+        error: "Please check all fields and accept the contact consent.",
+      },
       { status: 400 }
     );
   }
@@ -84,34 +90,60 @@ export async function POST(request: Request) {
 
   try {
     const { error } = await getDatabase()
-  .from("studio_enquiries")
-  .insert({
-    id: enquiry.id,
-    name: enquiry.name,
-    email: enquiry.email,
-    service: enquiry.service,
-    message: enquiry.message,
-    consent: enquiry.consent,
-    status: enquiry.status,
-    created_at: enquiry.createdAt,
-  });
+      .from("studio_enquiries")
+      .insert({
+        id: enquiry.id,
+        name: enquiry.name,
+        email: enquiry.email,
+        service: enquiry.service,
+        message: enquiry.message,
+        consent: enquiry.consent,
+        status: enquiry.status,
+        created_at: enquiry.createdAt,
+      });
 
-if (error) {
-  throw new Error(`Database insert failed: ${error.code}`);
-}
+    if (error) {
+      console.error("SUPABASE_ENQUIRY_INSERT_ERROR", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
 
-// Saving succeeds even if the notification email fails.
-try {
-  await notifyNewEnquiry(enquiry);
-} catch {
-  console.error("Notification failed for enquiry:", enquiry.id);
-}
-  } catch (error) {
-    console.error("Enquiry could not be saved:", error);
+      return Response.json(
+        {
+          error: "Your enquiry could not be saved. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
+  } catch {
+    console.error("ENQUIRY_SAVE_FAILED", {
+      reference: enquiry.id,
+    });
 
     return Response.json(
-      { error: "Your enquiry could not be saved. Please try again." },
+      {
+        error: "Your enquiry could not be saved. Please try again.",
+      },
       { status: 500 }
     );
   }
+
+  // An email failure must not mark a saved enquiry as failed.
+  try {
+    await notifyNewEnquiry(enquiry);
+  } catch {
+    console.error("ENQUIRY_NOTIFICATION_FAILED", {
+      reference: enquiry.id,
+    });
+  }
+
+  return Response.json(
+    {
+      success: true,
+      reference: enquiry.id,
+    },
+    { status: 201 }
+  );
 }
