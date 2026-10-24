@@ -19,7 +19,9 @@ export type StudioProject = {
 function validProjectId(id: string): boolean {
   return (
     defaultProjects.some((project) => project.id === id) ||
-    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+      id
+    )
   );
 }
 
@@ -44,7 +46,14 @@ export async function getStudioProjects(
     .order("id");
 
   if (error) {
-    throw new Error(`Could not load projects: ${error.code}`);
+    console.error("SUPABASE_READ_ERROR", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+
+    throw new Error("Could not read projects from Supabase.");
   }
 
   for (const row of data ?? []) {
@@ -100,13 +109,13 @@ export async function saveStudioProject(
     );
 
   if (error) {
-  console.error("Supabase projects query failed:", {
-    code: error.code,
-    message: error.message,
-    details: error.details,
-    hint: error.hint,
-  });
+    console.error("SUPABASE_SAVE_ERROR", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
 
-  throw new Error("Could not load projects from Supabase.");
-}
+    throw new Error("Could not save project to Supabase.");
+  }
 }
