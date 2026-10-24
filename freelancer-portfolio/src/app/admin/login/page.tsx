@@ -1,0 +1,81 @@
+"use client";
+import Link from "next/link";
+
+
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+
+export default function AdminLogin() {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (loading) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Login failed.");
+      }
+
+      router.replace("/admin");
+      router.refresh();
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Login failed."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="admin-login">
+      <form className="admin-login-card" onSubmit={handleLogin}>
+        <p className="eyebrow">ADITYA / ADMIN</p>
+        <h1>Welcome back.</h1>
+        <p>Sign in to view your project enquiries.</p>
+
+        <label htmlFor="admin-password">Admin password</label>
+
+        <input
+          id="admin-password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          maxLength={256}
+          required
+        />
+
+        <button
+          className="button button-primary"
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+
+        <p role="alert" className="admin-error">
+          {error}
+        </p>
+
+        <Link href="/">Back to website ↗</Link>
+      </form>
+    </main>
+  );
+}

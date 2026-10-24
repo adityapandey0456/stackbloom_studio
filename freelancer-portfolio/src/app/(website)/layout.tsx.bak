@@ -1,0 +1,49 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+import ChatWidget from "@/components/chatbot/ChatWidget";
+
+export default function WebsiteLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <header className="header">
+        <div className="container navigation">
+          <Link href="/" className="logo">
+            Aditya<span>.</span>
+          </Link>
+
+          <nav aria-label="Main navigation">
+            <a href="/#services">Services</a>
+            <a href="/#work">Work</a>
+            <a href="/#about">About</a>
+
+            <a href="/#contact" className="nav-contact">
+              Let&apos;s talk ↗
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <main>{children}</main>
+
+      <ChatWidget />
+
+      <footer className="footer">
+        <div className="container footer-content">
+          <Link href="/" className="logo">
+            Aditya<span>.</span>
+          </Link>
+
+          <p>Websites. Dashboards. Practical solutions.</p>
+
+          <a href="/#contact">
+            Discuss a project ↗
+          </a>
+        </div>
+      </footer>
+    </>
+  );
+}
