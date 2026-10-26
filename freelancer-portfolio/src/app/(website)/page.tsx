@@ -4,7 +4,7 @@ import {
   Code2,
   Workflow,
 } from "lucide-react";
-
+import Image from "next/image";
 import EnquiryForm from "@/components/forms/EnquiryForm";
 import FAQ from "@/components/home/FAQ";
 import FeaturedProjects from "@/components/home/FeaturedProjects";
@@ -192,9 +192,15 @@ export default function HomePage() {
         className="section container about-section"
         aria-labelledby="about-heading"
       >
-        <div className="about-monogram" aria-hidden="true">
-          A<span>↗</span>
-        </div>
+       <div className="studio-profile">
+  <Image
+    src="/images/aditya-profile.jpg"
+    alt="Aditya Pandey, founder of StackBloom Studio"
+    fill
+    sizes="(max-width: 768px) 100vw, 40vw"
+    className="studio-profile-image"
+  />
+</div>
 
         <div>
           <p className="eyebrow">

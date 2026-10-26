@@ -2922,3 +2922,26 @@ h3 {
     transition: none;
   }
 } 
+.studio-profile {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid #d9dfcf;
+  border-radius: 28px;
+  background: #e7ebdf;
+}
+
+.studio-profile-image {
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+@media (max-width: 768px) {
+  .studio-profile {
+    max-width: 520px;
+    margin-inline: auto;
+    border-radius: 22px;
+  }
+}

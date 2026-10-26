@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
@@ -49,8 +50,14 @@ export default function AboutPage() {
         className="section container about-section"
         aria-labelledby="about-page-heading"
       >
-        <div className="about-monogram" aria-hidden="true">
-          A<span>↗</span>
+        <div className="studio-profile">
+          <Image
+            src="/images/aditya-profile.jpg"
+            alt="Aditya Pandey, founder of StackBloom Studio"
+            fill
+            sizes="(max-width: 768px) 100vw, 40vw"
+            className="studio-profile-image"
+          />
         </div>
 
         <div>
