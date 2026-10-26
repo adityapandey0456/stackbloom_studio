@@ -112,8 +112,8 @@ export default function PrivacyPage() {
         <p>
           To request a correction or deletion of an enquiry,
           contact Aditya Pandey at{" "}
-          <a href="mailto:adityapandey0456@gmail.com">
-            adityapandey0456@gmail.com
+          <a href="mailto:info@stackbloomstudio.space">
+            info@stackbloomstudio.space
           </a>
           . Include your enquiry reference if available.
           Please do not include passwords or sensitive documents

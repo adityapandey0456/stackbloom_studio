@@ -41,8 +41,8 @@ export default function ContactPage() {
           <p className="eyebrow">EMAIL</p>
           <h2>Prefer a direct message?</h2>
 
-          <a href="mailto:adityapandey0456@gmail.com">
-            adityapandey0456@gmail.com
+          <a href="mailto:info@stackbloomstudio.space">
+            info@stackbloomstudio.space
           </a>
         </article>
 

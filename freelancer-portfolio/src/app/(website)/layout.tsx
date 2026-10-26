@@ -71,9 +71,9 @@ export default function WebsiteLayout({
 
               <a
                 className="footer-email"
-                href="mailto:adityapandey0456@gmail.com"
+                href="mailto:info@stackbloomstudio.space"
               >
-                adityapandey0456@gmail.com
+                info@stackbloomstudio.space
               </a>
             </div>
 
