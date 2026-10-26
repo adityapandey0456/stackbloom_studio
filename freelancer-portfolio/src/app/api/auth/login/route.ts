@@ -8,55 +8,118 @@ import {
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+const allowedOrigins = new Set([
+  "https://stackbloomstudio.space",
+  "https://www.stackbloomstudio.space",
+  "https://stackbloomstudio.netlify.app",
+]);
+
+function isAllowedOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
 
-  if (origin !== new URL(request.url).origin) {
-    return NextResponse.json(
-      { error: "Request not allowed." },
-      { status: 403 }
+  if (!origin) return false;
+
+  if (allowedOrigins.has(origin)) {
+    return true;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return (
+      origin === "http://localhost:3000" ||
+      origin === "http://127.0.0.1:3000"
     );
   }
+
+  return false;
+}
+
+function jsonResponse(
+  body: Record<string, unknown>,
+  status: number
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+export async function POST(request: Request) {
+  if (!isAllowedOrigin(request)) {
+    return jsonResponse(
+      { error: "Request not allowed." },
+      403
+    );
+  }
+
+  let body: unknown;
 
   try {
     const text = await request.text();
 
     if (text.length > 2000) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Invalid request." },
-        { status: 413 }
+        413
       );
     }
 
-    const body = JSON.parse(text);
+    body = JSON.parse(text);
+  } catch {
+    return jsonResponse(
+      { error: "Invalid request." },
+      400
+    );
+  }
 
-    if (
-      typeof body?.password !== "string" ||
-      !verifyPassword(body.password)
-    ) {
-      return NextResponse.json(
+  if (
+    !body ||
+    typeof body !== "object" ||
+    Array.isArray(body) ||
+    !("password" in body) ||
+    typeof body.password !== "string"
+  ) {
+    return jsonResponse(
+      { error: "Please enter your password." },
+      400
+    );
+  }
+
+  try {
+    if (!verifyPassword(body.password)) {
+      return jsonResponse(
         { error: "Incorrect password." },
-        { status: 401 }
+        401
       );
     }
 
-    const response = NextResponse.json({ success: true });
+    const response = jsonResponse(
+      { success: true },
+      200
+    );
 
-    response.cookies.set(SESSION_COOKIE, createSession(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-      maxAge: SESSION_SECONDS,
-    });
-
-    response.headers.set("Cache-Control", "no-store");
+    response.cookies.set(
+      SESSION_COOKIE,
+      createSession(),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: SESSION_SECONDS,
+      }
+    );
 
     return response;
   } catch {
-    return NextResponse.json(
-      { error: "Login failed. Check server configuration." },
-      { status: 500 }
+    console.error("ADMIN_LOGIN_FAILED");
+
+    return jsonResponse(
+      {
+        error: "Login failed. Check server configuration.",
+      },
+      500
     );
   }
 }
